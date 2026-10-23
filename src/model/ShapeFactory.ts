@@ -19,4 +19,9 @@ export class ShapeFactory {
     if (args !== undefined) shape.initialize(args);
     return shape;
   }
+
+  syntaxes(): string[] {
+    return [...this.constructors].map(([name, Constructor]) =>
+      `create ${name} <id> ${new Constructor('example').parameterSyntax} [in <containerId>]`.replace(/ +/g, ' '));
+  }
 }

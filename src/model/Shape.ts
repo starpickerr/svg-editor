@@ -12,6 +12,7 @@ export abstract class Shape {
   get label(): string { return `${this.tag}#${this.id}`; }
   get children(): readonly Shape[] { return []; }
   get text(): string | undefined { return undefined; }
+  abstract get parameterSyntax(): string;
 
   abstract initialize(args: readonly string[]): void;
   abstract move(dx: number, dy: number): void;

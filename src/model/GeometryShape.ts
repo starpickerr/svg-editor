@@ -11,6 +11,10 @@ export abstract class GeometryShape extends Shape {
     this.geometry = new Map(fields.map(field => [field, 0]));
   }
 
+  override get parameterSyntax(): string {
+    return [...this.geometry.keys()].map(name => `<${name}>`).join(' ') + (this.optionalStyle ? ` [${this.optionalStyle}]` : '');
+  }
+
   override initialize(args: readonly string[]): void {
     const fields = [...this.geometry.keys()];
     Values.arity(args, fields.length, fields.length + (this.optionalStyle ? 1 : 0));
@@ -43,6 +47,16 @@ export abstract class GeometryShape extends Shape {
 
   override attributes(): Record<string, string> {
     return { ...super.attributes(), ...Object.fromEntries([...this.geometry].map(([k, v]) => [k, String(v)])) };
+  }
+
+  override summary(): string {
+    const common = Object.entries(super.attributes()).filter(([name]) => name !== 'id')
+      .map(([name, value]) => `${name}=${value}`).join(' ');
+    return `${this.label}  ${this.geometrySummary()}${common ? ` ${common}` : ''}`;
+  }
+
+  protected geometrySummary(): string {
+    return [...this.geometry].map(([name, value]) => `${name.replace(/^width$/, 'w').replace(/^height$/, 'h')}=${value}`).join(' ');
   }
 
   protected copyGeometry(target: GeometryShape): void {
