@@ -1,0 +1,6 @@
+.agents/
+AGENTS.md
+node_modules/
+dist/
+coverage/
+.DS_Store
