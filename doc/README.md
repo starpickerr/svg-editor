@@ -24,8 +24,13 @@ npm run cli
 | `src/main.ts` | REPL 与标准输入输出接线 | cli、Node readline |
 | `test/` | 验证可观察行为与关键不变量 | 以上生产模块、Node 测试 API |
 
+![PlantUML 组件依赖图](architecture.svg)
+
+下列源码生成上图。使用 PlantUML 1.2026.9 的 Smetana 布局渲染，无须额外安装 Graphviz；重生成方法参见 [PlantUML 命令行文档](https://plantuml.com/command-line)。
+
 ```plantuml
 @startuml
+!pragma layout smetana
 component "main / REPL" as main
 component "cli" as cli
 component "commands" as commands
@@ -44,9 +49,9 @@ svg --> model
 
 ### 设计模式的选择
 
-- **Composite**：抽象 Shape 定义统一操作，六个具体图形中 Group 管理有序子节点。叶子与容器通过多态完成移动、缩放、属性修改和复制，不在外部按标签分派行为。
-- **Command**：每条编辑请求封装为命令对象；历史管理器负责执行、撤销和重做。一条编辑命令构成一个历史单元。采用内存快照保证复杂树操作的失败原子性与完整恢复，不把 SVG 文件当作历史存储。
-- **集中工厂与命令分发**：类型名到图形构造、命令名到实现各集中于一个位置。这是任务允许的两处名字分派，**均标注为待重构点**；本阶段不提前实现注册插件。
+- **Composite**：[Shape](../src/model/Shape.ts) 定义统一操作，六个具体图形中 [Group](../src/model/Group.ts) 管理有序子节点。叶子与容器通过多态完成移动、缩放、属性修改和复制，不在外部按标签分派行为。
+- **Command**：[EditCommand](../src/commands/EditCommand.ts) 及其具体子类封装每条编辑请求；[Editor](../src/commands/Editor.ts) 负责执行、撤销和重做。一条编辑命令构成一个历史单元。采用内存快照保证复杂树操作的失败原子性与完整恢复，不把 SVG 文件当作历史存储。
+- **集中工厂与命令分发**：[ShapeFactory](../src/model/ShapeFactory.ts) 与 [CommandRouter](../src/cli/CommandRouter.ts) 各自集中类型名到图形构造、命令名到实现的分派。这是任务允许的两处名字分派，**均标注为待重构点**；本阶段不提前实现注册插件。帮助语法由图形提供创建参数描述，避免新增一处类型判断。
 
 ### 变化点假设
 
@@ -65,7 +70,6 @@ svg --> model
 - SVG 读取支持六种元素，保留额外属性（如 transform、font-size）并在保存时写回；编辑几何值采用元素局部坐标，不实现任意 SVG 变换矩阵的归一化。未支持的元素或无效 XML 会令整次读取失败，不能静默丢弃。
 - `init` 的缺省尺寸为 800×600；`canvas` 无参数只查询，只给宽度则保留当前高度。按任务的未初始化错误约定，`help` 也须先有文档。
 - 无参数 `save` 使用最近一次成功 `read` 的路径；显式保存到其他文件不改变该读入路径，`init` 会清除路径。
-- 其他未明确细节将在实现中记录，涉及实质歧义时先确认，不修改任务原文。
 
 ## 过程记录
 
@@ -74,11 +78,35 @@ svg --> model
 - 远程仓库使用 `https://github.com/starpickerr/fudan_softdesign.git`；具体截止时间尚未提供。发布到 main 和最终标签不属于自动执行范围。
 - 历史设计审查发现：只在命令结束后保存历史，仍可能让容器操作中途失败时遗留部分变更。因此编辑先作用于文档副本，成功后才发布；通过第二个子元素数值溢出的场景验证整条命令的状态不变。
 - 文件读写审查补充了两项失败场景：读取先遇到缺 id、后遇到非法几何值时不输出半次成功的警告，也不替换当前文档；覆盖只读文件失败时保留原内容。保存后的临时目录清理采用尽力清理，避免成功替换文件后仅因清理失败而错误地报告保存失败。
+- CLI 核查时将通用属性列表调整为课程树形展示格式（矩形 w/h、文字坐标、线段端点），并从图形的参数描述生成完整帮助语法，保持类型分派仍集中在工厂。
+- 回放课程 §6 及 §6.1 的当前阶段场景后，在 Edge 实际打开生成的流程图 SVG，确认两个彩色节点、中文文字及连线可见。
 
 ## 一致性自查
 
-当前为实现前方案。实现完成后依据实际目录和引用更新此节，不预先宣称通过。
+1. **模块划分**：实际 `src/model`、`src/commands`、`src/svg`、`src/cli` 与 `src/main.ts` 均与方案一致，无尚未记录的目录偏差。创建参数、复制、几何及树操作封装于对应类；有类的生产文件均符合类名与文件名一致、一类一文件。
+2. **依赖方向**：检查了全部生产代码的静态相对导入，未发现跨模块反向依赖。抽样核对了 `EditCommand → SvgDocument`、`SvgCodec → ShapeFactory`、`CommandRouter → Editor / SvgFileStore` 的实际调用；model 不导入 commands、svg、cli 或文件系统。两处允许的名字分派已经标注，没有在序列化、树显示或几何操作中按图形标签增加分派。
+3. **修订与待处理项**：方案未发生模块边界调整；行为澄清与审查修正见上文。两处分派保留为后续插件化的待重构点，不影响当前阶段。没有发现未处理的当前阶段实现或依赖方向违规。
 
 ## 质量保证手段
 
-计划使用 TypeScript 严格检查、Node 测试、CLI 脚本回放与 SVG 实际预览。实际结果与覆盖范围将在执行后记录，计划不等同于通过。
+实际执行并通过：
+
+- `npm run check`：严格 TypeScript 类型检查。
+- `npm test`：15 项 Node 测试全部通过，覆盖情况如下。
+- `npm run build`：生成可执行 JavaScript，编译后入口回放课程典型命令成功。
+- `npm run cli < examples/flowchart.txt`：完成节点创建、容器移动、撤销、文字修改、保存及保存后历史屏障检查。
+- 在 Edge 打开 `examples/flowchart.svg`，检查实际绘制内容；SVG 往返读写检查同时验证文件结构与文字转义。
+- 全部生产代码静态相对导入与类/文件命名核查、Git 差异空白检查通过。
+
+| 验收内容 | 主要证据 |
+| --- | --- |
+| 六种图形、浮点坐标、属性白名单、可选样式、唯一且大小写敏感的 id | [model.test.ts](../test/model.test.ts)、[cli.test.ts](../test/cli.test.ts) |
+| 分组、解组、归属移动、子树删除及同级顺序 | [hierarchy.test.ts](../test/hierarchy.test.ts)、CLI 编辑场景 |
+| 单命令撤销重做、分支后清除 redo、屏障及失败原子性 | [history.test.ts](../test/history.test.ts)、CLI 文档操作场景 |
+| SVG 嵌套读写、自动补 id、XML 文本、无效文件及不可写文件 | [svg.test.ts](../test/svg.test.ts)、CLI 读写场景 |
+| 提示符、注释、引号、全部命令帮助、tree/show、错误后继续运行 | CLI 测试中的实际 REPL 子进程与脚本回放 |
+| 文档、图示、模式落地、依赖方向与真实过程记录 | 本文及实际代码审查 |
+
+验证环境为 macOS、Node.js 22.23.2；未声明已在其他操作系统或完整 SVG 标准上验收。历史快照未进行大文档性能评测。后续 `box` 和插件系统不属于当前范围。
+
+版本管理保留了初始化、各核心机制任务分支、验证后普通 Merge 以及后续修正的历史。日常交付分支为 `develop`；正式发布到 `main`、确认最终 Commit 和创建 `final` 标签仍需分别明确授权。截止时间尚待提供，不能宣称课程最终提交已经完成。
