@@ -5,6 +5,7 @@ export class Group extends Shape {
   readonly tag = 'g';
   private readonly nodes: Shape[] = [];
   override get children(): readonly Shape[] { return [...this.nodes]; }
+  override get parameterSyntax(): string { return ''; }
   override initialize(args: readonly string[]): void { Values.arity(args, 0); }
   override asContainer(): Group { return this; }
   override move(dx: number, dy: number): void {
