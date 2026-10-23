@@ -6,6 +6,7 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
+    "types": ["node"],
     "esModuleInterop": true,
     "rootDir": ".",
     "outDir": "dist",
