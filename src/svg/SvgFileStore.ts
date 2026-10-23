@@ -22,6 +22,11 @@ export class SvgFileStore {
       writeFileSync(output, xml, { encoding: 'utf8', flag: 'wx' });
       renameSync(output, path);
     } catch { throw new Error(`cannot write file: ${path}`); }
-    finally { if (temporary) rmSync(temporary, { recursive: true, force: true }); }
+    finally {
+      if (temporary) {
+        // Cleanup cannot turn an already committed rename into a reported save failure.
+        try { rmSync(temporary, { recursive: true, force: true }); } catch { /* best-effort cleanup */ }
+      }
+    }
   }
 }

@@ -63,6 +63,9 @@ test('read/save/canvas preserve state on failure and establish barriers only on 
     assert.deepEqual(cli.execute('undo'), ['error: undo not allowed after io command']);
     cli.execute('move rect1 10 20');
     const before = cli.execute('tree');
+    const invalid = join(directory, 'invalid.svg');
+    writeFileSync(invalid, '<svg><rect/><circle r="-1"/></svg>');
+    assert.deepEqual(cli.execute(`read "${invalid}"`), [`error: cannot read file: ${invalid}`]);
     assert.deepEqual(cli.execute(`read "${directory}/missing.svg"`), [`error: cannot read file: ${directory}/missing.svg`]);
     assert.deepEqual(cli.execute(`save "${directory}/missing/file.svg"`), [`error: cannot write file: ${directory}/missing/file.svg`]);
     assert.deepEqual(cli.execute('canvas -1 2'), ['error: canvas width must be positive']);

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { SvgCodec } from '../src/svg/SvgCodec.js';
@@ -43,6 +43,15 @@ test('file IO writes usable XML and leaves the destination intact on failure', (
     const result = store.read(source); store.save(target, result.document);
     assert.equal(store.read(target).document.find('c').attributes().r, '5');
     assert.equal(readFileSync(target, 'utf8'), codec.serialize(result.document));
+    if (process.platform !== 'win32' && process.getuid?.() !== 0) {
+      const original = readFileSync(target, 'utf8');
+      result.document.find('c').move(100, 100);
+      chmodSync(target, 0o444);
+      try {
+        assert.throws(() => store.save(target, result.document), /cannot write file/);
+        assert.equal(readFileSync(target, 'utf8'), original);
+      } finally { chmodSync(target, 0o644); }
+    }
     assert.throws(() => store.save(join(directory, 'missing', 'x.svg'), result.document), /cannot write file/);
     assert.throws(() => store.read(join(directory, 'missing.svg')), /cannot read file/);
     assert.deepEqual(readdirSync(directory).sort(), ['source.svg','target.svg']);
