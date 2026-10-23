@@ -63,6 +63,55 @@ export class SvgDocument {
     const shape = this.find(id); this.parentOf(shape).remove(shape); return shape;
   }
 
+  group(id: string, ids: readonly string[]): Group {
+    Values.id(id);
+    if (this.shapes.some(shape => shape.id === id)) throw new Error(`id already exists: ${id}`);
+    if (ids.length < 2) throw new Error('group requires at least two shapes');
+    if (new Set(ids).size !== ids.length) throw new Error('duplicate group member');
+    const requested = ids.map(member => this.find(member));
+    for (const shape of requested) {
+      if (requested.some(other => other !== shape && shape.contains(other))) {
+        throw new Error(`cannot group a container into its own descendant: ${shape.id}`);
+      }
+    }
+    const selected = this.shapes.filter(shape => requested.includes(shape));
+    let parent = this.parentOf(selected[0]!);
+    while (!selected.every(shape => parent.contains(shape))) parent = this.parentOf(parent);
+    const index = parent.children.findIndex(child => selected.some(shape => child.contains(shape)));
+    const group = new Group(id);
+    for (const shape of selected) this.parentOf(shape).remove(shape);
+    for (const shape of selected) group.insert(shape);
+    parent.insert(group, index);
+    return group;
+  }
+
+  ungroup(id: string): void {
+    const group = this.find(id).asContainer();
+    const parent = this.parentOf(group);
+    if (parent === this.root) throw new Error(`cannot ungroup top-level container: ${id}`);
+    let index = parent.remove(group);
+    for (const child of group.children) {
+      group.remove(child); parent.insert(child, index++);
+    }
+  }
+
+  addTo(groupId: string, id: string): void {
+    const target = this.container(groupId);
+    const shape = this.find(id);
+    if (shape.contains(target)) {
+      throw new Error(`cannot group a container into its own descendant: ${id}`);
+    }
+    this.parentOf(shape).remove(shape);
+    target.insert(shape);
+  }
+
+  reorder(id: string, front: boolean): void {
+    const shape = this.find(id);
+    const parent = this.parentOf(shape);
+    parent.remove(shape);
+    parent.insert(shape, front ? parent.children.length : 0);
+  }
+
   clone(): SvgDocument {
     const copy = new SvgDocument(this.width, this.height, this.metadata);
     copy.rootNode = this.root.clone();
