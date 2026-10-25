@@ -1,5 +1,7 @@
 # SVG 编辑器——设计与实现报告
 
+Git 仓库：[starpickerr/svg-editor](https://github.com/starpickerr/svg-editor)
+
 ## 一、架构方案
 
 ### 1. 模块划分
